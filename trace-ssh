@@ -21,16 +21,17 @@
 
 # Override these values if you need to use specific versions,
 # non-default-path binaries, or tweaked options
-TMUX="tmux"
-SSH="ssh"
-SSH_OPTIONS=""
-CLIENT_MTR="mtr"
-SERVER_MTR="${CLIENT_MTR}"
-CLIENT_MTR_OPTIONS="-z -o \"N\""
-SERVER_MTR_OPTIONS="${CLIENT_MTR_OPTIONS}"
+TMUX="tmux"                                # The tmux command
+SSH="ssh"                                  # The ssh command
+CLIENT_MTR="mtr"                           # The mtr command for the local system
+SERVER_MTR="${CLIENT_MTR}"                 # The mtr command for the remote system
+
+SSH_OPTIONS=""                             # Options for both ssh sessions
+MTR_SSH_OPTIONS="${SSH_OPTIONS} -t"        # Options specific for the mtr ssh session
+CLIENT_MTR_OPTIONS="-z -y 2 -o \"N\""      # mtr options for the local system
+SERVER_MTR_OPTIONS="${CLIENT_MTR_OPTIONS}" # mtr options for the remote system
 
 set -e
-echo off
 
 show_help() {
     echo "Usage: trace-ssh.sh [-4] [-6] destination"
@@ -69,7 +70,7 @@ ${TMUX} set-option -t ${SESSION}.1 remain-on-exit on
 ${TMUX} split-window -t ${SESSION}.0 -h
 ${TMUX} split-window -t ${SESSION} -v
 ${TMUX} send-keys -t ${SESSION}.1 "${CLIENT_MTR} $IPV -t ${DESTINATION} ${CLIENT_MTR_OPTIONS} \"N\"" C-m
-${TMUX} send-keys -t ${SESSION}.2 "${SSH} ${SSH_OPTIONS} ${IPV} ${DESTINATION} TERM=${TERM} ${SERVER_MTR} \$\{SSH_CLIENT%% *\} ${SERVER_MTR_OPTIONS}" C-m
+${TMUX} send-keys -t ${SESSION}.2 "${SSH} ${MTR_SSH_OPTIONS} ${IPV} ${DESTINATION} ${SERVER_MTR} \$\{SSH_CLIENT%% *\} ${SERVER_MTR_OPTIONS}" C-m
 ${TMUX} select-pane -t ${SESSION}.0
 ${TMUX} send-keys -t ${SESSION}.0 "(${SSH} ${SSH_OPTIONS} ${IPV} ${DESTINATION} || sleep 4) ; ${TMUX} kill-session -t ${SESSION}" C-m
 ${TMUX} attach -t ${SESSION}.0
