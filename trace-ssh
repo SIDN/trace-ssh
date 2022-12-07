@@ -1,0 +1,75 @@
+#!/bin/bash
+
+# trace-ssh.sh
+#
+# This is a small shellscript that shows you the traceroute to the ssh
+# server you are connected to, as well as the traceroute from the
+# server back to your local system.
+#
+# It starts ssh in a tmux session with 3 panes:
+# - the main pane on the left contains the ssh session itself, 
+# - the pane on the top right shows an mtr trace to the destination
+# - the pane on the bottom right shows an mtr trace from the destination to the source
+#
+# For more information, see the README.md file
+#
+# Copyright 2022, SIDN
+#
+# License: MIT, see LICENSE file for details
+#
+
+
+# Override these values if you need to use specific versions,
+# non-default-path binaries, or tweaked options
+TMUX="tmux"
+SSH="ssh"
+SSH_OPTIONS=""
+CLIENT_MTR="mtr"
+SERVER_MTR="${CLIENT_MTR}"
+CLIENT_MTR_OPTIONS="-z -o \"N\""
+SERVER_MTR_OPTIONS="${CLIENT_MTR_OPTIONS}"
+
+set -e
+echo off
+
+show_help() {
+    echo "Usage: trace-ssh.sh [-4] [-6] destination"
+    exit 0
+}
+
+IPV=""
+DESTINATION=""
+for var in "$@"
+do
+    if [[ $var = -* ]]; then
+        if [[ $var == "-4" ]]; then
+            IPV="-4"
+        elif [[ $var == "-6" ]]; then
+            IPV="-6"
+        elif [[ $var == "-h" || $var == "--help" ]]; then
+            show_help
+        else
+            echo "Unknown argument: $var"
+            exit 1
+        fi
+    elif [[ $DESTINATION == "" ]]; then
+        DESTINATION=$var
+    else
+        echo "Unknown argument: $var"
+        exit 1
+    fi
+done
+if [[ ${DESTINATION} == "" ]]; then
+    show_help
+fi
+
+SESSION="tracessh${RANDOM}"
+${TMUX} new-session -d -s ${SESSION}
+${TMUX} set-option -t ${SESSION}.1 remain-on-exit on
+${TMUX} split-window -t ${SESSION}.0 -h
+${TMUX} split-window -t ${SESSION} -v
+${TMUX} send-keys -t ${SESSION}.1 "${CLIENT_MTR} $IPV -t ${DESTINATION} ${CLIENT_MTR_OPTIONS} \"N\"" C-m
+${TMUX} send-keys -t ${SESSION}.2 "${SSH} ${SSH_OPTIONS} ${IPV} ${DESTINATION} TERM=${TERM} ${SERVER_MTR} \$\{SSH_CLIENT%% *\} ${SERVER_MTR_OPTIONS}" C-m
+${TMUX} select-pane -t ${SESSION}.0
+${TMUX} send-keys -t ${SESSION}.0 "(${SSH} ${SSH_OPTIONS} ${IPV} ${DESTINATION} || sleep 4) ; ${TMUX} kill-session -t ${SESSION}" C-m
+${TMUX} attach -t ${SESSION}.0
