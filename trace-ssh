@@ -1,6 +1,8 @@
 #!/bin/bash
 
-# trace-ssh.sh
+# trace-ssh
+#
+# Version 1.0
 #
 # This is a small shellscript that shows you the traceroute to the ssh
 # server you are connected to, as well as the traceroute from the
